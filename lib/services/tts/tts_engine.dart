@@ -105,26 +105,20 @@ class TtsTextSplitter {
     final sentences = toSentences(clean);
     if (sentences.isEmpty) sentences.add(clean);
 
+    // 每句独立成段（播放器会无缝串播）；超过 2×maxChars 的长句硬切
     final chunks = <String>[];
-    final buffer = StringBuffer();
     for (final s in sentences) {
-      if (buffer.length + s.length > maxChars && buffer.isNotEmpty) {
-        chunks.add(buffer.toString().trim());
-        buffer.clear();
-      }
-      if (s.length > maxChars * 2) {
-        // 超长无标点文本，硬切
-        var start = 0;
-        while (start < s.length) {
-          final end = (start + maxChars) > s.length ? s.length : start + maxChars;
-          chunks.add(s.substring(start, end));
-          start = end;
-        }
+      if (s.length <= maxChars * 2) {
+        chunks.add(s);
         continue;
       }
-      buffer.write(s);
+      var start = 0;
+      while (start < s.length) {
+        final end = (start + maxChars) > s.length ? s.length : start + maxChars;
+        chunks.add(s.substring(start, end));
+        start = end;
+      }
     }
-    if (buffer.isNotEmpty) chunks.add(buffer.toString().trim());
     return chunks.where((e) => e.isNotEmpty).toList();
   }
 }
