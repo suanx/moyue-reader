@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
 import '../services/tts/audio_book_player.dart';
+import '../services/tts/tts_engine.dart';
 import '../state/tts_controller.dart';
 
 /// 悬浮听书条：任何页面都能看到当前朗读进度

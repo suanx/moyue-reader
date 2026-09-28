@@ -81,7 +81,7 @@ class TxtParser implements BookParser {
       part++;
     }
     if (chapters.isEmpty) {
-      chapters.add(const ParsedChapter(title: '全文', content: ''));
+      chapters.add(ParsedChapter(title: '全文', content: ''));
     }
     return chapters;
   }

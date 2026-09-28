@@ -40,7 +40,7 @@ class _DiscoverPageState extends ConsumerState<DiscoverPage> {
         sample['author']!,
         sample['desc']!,
       );
-      await ref.read(libraryControllerProvider.notifier).refresh();
+      ref.read(libraryControllerProvider.notifier).refresh();
       if (!mounted) return;
       Navigator.of(context).pop();
       await Navigator.of(context).push(

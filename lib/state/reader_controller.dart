@@ -112,7 +112,7 @@ class ReaderController extends Notifier<ReaderState?> {
   Future<void> _saveProgress() async {
     final s = state;
     if (s == null) return;
-    final chapterRatio = s.pageCount <= 1 ? 1 : (s.pageIndex + 1) / s.pageCount;
+    final chapterRatio = s.pageCount <= 1 ? 1.0 : (s.pageIndex + 1) / s.pageCount;
     final progress = s.book.chapterCount <= 1
         ? chapterRatio
         : ((s.chapterIndex + chapterRatio) / s.book.chapterCount).clamp(0.0, 1.0).toDouble();

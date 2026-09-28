@@ -195,7 +195,7 @@ class AudioBookPlayer {
     await _player.setAudioSource(_playlist, preload: true);
     await _player.setSpeed(1.0);
     await _player.play();
-    await _enqueuePrepare(_offset + 1);
+    _enqueuePrepare(_offset + 1);
   }
 
   Future<void> pause() async {
