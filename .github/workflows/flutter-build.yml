@@ -78,7 +78,8 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
-          cache: 'gradle'
+          # 注意：仓库不含 android/，Gradle 文件由 setup-project 现场生成，
+          # 在此步配置 cache: 'gradle' 会因找不到 **/*.gradle* 而报错
 
       - uses: subosito/flutter-action@v2
         with:
