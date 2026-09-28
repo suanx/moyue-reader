@@ -47,8 +47,10 @@ runs:
                        r'\1<uses-permission android:name="android.permission.INTERNET"/>\n\1\2',
                        s, count=1)
         else:
-            s = s.replace('<manifest',
-                           '<!-- 墨阅：Edge-TTS 与 AI 需要联网 -->\n' + perm + '<manifest', 1)
+            # 必须插到 <manifest ...> 开始标签内部（根元素之内），否则 XML 非法
+            s = re.sub(r'(<manifest[^>]*>)',
+                       r'\1\n    <!-- Edge-TTS 与 AI 需要联网 -->\n' + perm,
+                       s, count=1)
         open(p, 'w', encoding='utf-8').write(s)
         PY
           echo "已注入 INTERNET 权限"
