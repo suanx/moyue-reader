@@ -60,7 +60,8 @@ runs:
       run: |
         set -euo pipefail
         # Flutter 3.16+ 模板使用 Kotlin DSL（build.gradle.kts），两种都要兼容
-        f=$(ls android/app/build.gradle android/app/build.gradle.kts 2>/dev/null | head -1)
+        # 注意：ls 在任一文件缺失时返回非零，set -euo pipefail 下必须兜住
+        f=$(ls android/app/build.gradle android/app/build.gradle.kts 2>/dev/null | head -1 || true)
         if [ -z "$f" ] || [ ! -f "$f" ]; then
           echo "!! 未找到 gradle 构建文件，跳过（Flutter 默认 minSdk 已满足要求）"; exit 0
         fi
