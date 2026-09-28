@@ -1,0 +1,74 @@
+name: '墨阅 工程准备'
+description: >-
+  生成 android/ 平台目录（仓库只提交纯 Dart 代码）、注入 INTERNET 权限
+  （Edge-TTS 与 AI 必需，官方模板默认没有）、确保 minSdk >= 23。
+  幂等，可重复执行。
+
+inputs:
+  project-name:
+    description: 'Flutter 工程名'
+    required: false
+    default: 'moyue_reader'
+  org:
+    description: 'Android 包名组织前缀'
+    required: false
+    default: 'com.moyue'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 生成 Android 平台目录
+      shell: bash
+      run: |
+        set -euo pipefail
+        flutter create --platforms=android \
+          --project-name "${{ inputs.project-name }}" --org "${{ inputs.org }}" .
+        # 模板自带的示例测试引用不存在的 MyApp，会让 analyze 报错
+        rm -f test/widget_test.dart
+
+    - name: 注入 INTERNET 权限
+      shell: bash
+      run: |
+        set -euo pipefail
+        M=android/app/src/main/AndroidManifest.xml
+        if [ ! -f "$M" ]; then
+          echo "!! 未找到 $M，跳过权限注入"; exit 0
+        fi
+        if grep -q 'android.permission.INTERNET' "$M"; then
+          echo "INTERNET 权限已存在"
+        else
+          python3 - "$M" <<'PY'
+        import sys, re
+        p = sys.argv[1]
+        s = open(p, encoding='utf-8').read()
+        perm = '    <uses-permission android:name="android.permission.INTERNET"/>\n'
+        if '<uses-permission' in s:
+            s = re.sub(r'(\s*)(<uses-permission)',
+                       r'\1<uses-permission android:name="android.permission.INTERNET"/>\n\1\2',
+                       s, count=1)
+        else:
+            s = s.replace('<manifest',
+                           '<!-- 墨阅：Edge-TTS 与 AI 需要联网 -->\n' + perm + '<manifest', 1)
+        open(p, 'w', encoding='utf-8').write(s)
+        PY
+          echo "已注入 INTERNET 权限"
+        fi
+        grep -n 'INTERNET' "$M"
+
+    - name: 确保 minSdk >= 23
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Flutter 3.16+ 模板使用 Kotlin DSL（build.gradle.kts），两种都要兼容
+        f=$(ls android/app/build.gradle android/app/build.gradle.kts 2>/dev/null | head -1)
+        if [ -z "$f" ] || [ ! -f "$f" ]; then
+          echo "!! 未找到 gradle 构建文件，跳过（Flutter 默认 minSdk 已满足要求）"; exit 0
+        fi
+        echo "构建文件：$f"
+        if grep -qE 'minSdk(Version)? *= *flutter\.minSdkVersion' "$f"; then
+          echo "使用 flutter.minSdkVersion（默认 >= 24），无需修改"
+        else
+          sed -i -E 's/minSdkVersion +[0-9]+/minSdkVersion 23/; s/minSdk *= *[0-9]+/minSdk = 23/' "$f"
+          echo "已将 minSdk 提升到 23"
+        fi
+        grep -nE 'minSdk' "$f" || true

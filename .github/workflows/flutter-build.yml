@@ -1,0 +1,170 @@
+name: 墨阅 Reader CI
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      build_release:
+        description: '同时构建 Release 包'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # 打 tag 时用于创建 Release
+
+env:
+  FLUTTER_VERSION: '3.35.1'
+  JAVA_VERSION: '17'
+
+# 同一分支的新提交自动取消旧任务，省 runner 时长
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------- 静态检查 + 单元测试
+  check:
+    name: 静态检查与单元测试
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - uses: ./.github/actions/setup-project
+
+      - name: 安装依赖
+        run: flutter pub get
+
+      # 只让「编译错误」阻断流程；lint 告警不阻断，避免第三方模板噪声把 CI 卡死
+      - name: 静态检查
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: 单元测试
+        run: flutter test --coverage
+
+      - name: 上传覆盖率报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------- 构建 APK
+  build-apk:
+    name: 构建 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - uses: ./.github/actions/setup-project
+
+      - name: 读取版本号
+        id: ver
+        run: |
+          set -euo pipefail
+          v=$(grep -m1 '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "版本号：$v"
+
+      - name: 构建 Debug APK
+        run: flutter build apk --debug
+
+      - name: 整理 Debug 产物
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-debug.apk \
+             "dist/墨阅Reader-${{ steps.ver.outputs.version }}-debug.apk"
+          ls -lh dist
+
+      - name: 上传 Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: 墨阅Reader-debug
+          path: dist/*.apk
+          if-no-files-found: error
+
+      # 未配置签名时 Flutter 退回 debug keystore：能装能跑，但不能上架商店
+      - name: 构建 Release APK
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_release == 'true'
+        run: |
+          flutter build apk --release
+          flutter build apk --release --split-per-abi
+
+      - name: 整理 Release 产物
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_release == 'true'
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "dist/墨阅Reader-${{ steps.ver.outputs.version }}.apk"
+          for f in build/app/outputs/flutter-apk/*-v7a*.apk \
+                   build/app/outputs/flutter-apk/*-v8a*.apk \
+                   build/app/outputs/flutter-apk/*x86_64*.apk; do
+            [ -f "$f" ] && cp "$f" dist/ || true
+          done
+          ls -lh dist
+
+      - name: 上传 Release APK
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_release == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: 墨阅Reader-release
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: 发布到 GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          generate_release_notes: true
+
+  # ---------------------------------------------------------------- 结果汇总
+  summary:
+    name: 构建结果
+    runs-on: ubuntu-latest
+    needs: [check, build-apk]
+    if: always()
+    steps:
+      - name: 输出结论
+        run: |
+          {
+            echo "### 墨阅 Reader 构建结果"
+            echo
+            echo "| 阶段 | 结果 |"
+            echo "|---|---|"
+            echo "| 静态检查 + 单元测试 | ${{ needs.check.result }} |"
+            echo "| APK 构建 | ${{ needs.build-apk.result }} |"
+            echo
+            echo "提交：\`${GITHUB_SHA::7}\` · 分支：\`${GITHUB_REF_NAME}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ needs.build-apk.result }}" = "success" ] || exit 1

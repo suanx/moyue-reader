@@ -1,0 +1,26 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+*.iml
+.idea/
+.vscode/
+.DS_Store
+
+# 平台目录由 CI 的 flutter create 现场生成，不入库
+android/
+ios/
+web/
+linux/
+windows/
+macos/
+
+# 签名相关，绝不入库
+*.jks
+*.keystore
+key.properties
+
+# 效果图由 tools/shoot_ui.py 生成，产物入库便于查看

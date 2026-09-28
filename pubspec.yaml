@@ -1,0 +1,45 @@
+name: moyue_reader
+description: 墨阅 Reader —— 支持本地导入、多引擎解析、AI 中心与 Edge-TTS 听书的 Flutter 阅读器
+publish_to: 'no-publish'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # 状态管理（MVVM + 响应式，对应架构图中的 MVVM/StateFlow）
+  flutter_riverpod: ^2.6.1
+
+  # 本地持久化 / 轻量 KV（对应 Room / DataStore）
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # 网络（对应 Retrofit 层）
+  dio: ^5.7.0
+  web_socket_channel: ^2.4.0   # Edge-TTS 的 WebSocket 通道
+  crypto: ^3.0.6               # Sec-MS-GEC 签名
+  uuid: ^4.4.2
+
+  # 听书
+  flutter_tts: ^3.10.0         # 系统 TTS 引擎
+  just_audio: ^0.9.39          # Edge-TTS 音频播放
+  audio_session: ^0.1.19
+
+  # 文件与解析
+  file_picker: ^8.1.2
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  archive: ^3.6.1              # EPUB 解压
+  xml: ^6.5.1                  # OPF / NCX 解析
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
