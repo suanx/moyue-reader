@@ -75,3 +75,17 @@ runs:
           echo "已将 minSdk 提升到 23"
         fi
         grep -nE 'minSdk' "$f" || true
+
+    - name: 应用自定义启动图标（读书狐狸）
+      shell: bash
+      run: |
+        set -euo pipefail
+        R=android/app/src/main/res
+        for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+          cp "tools/icon/ic_launcher_$d.png"             "$R/mipmap-$d/ic_launcher.png"
+          cp "tools/icon/ic_launcher_background_$d.png"  "$R/mipmap-$d/ic_launcher_background.png"
+          cp "tools/icon/ic_launcher_foreground_$d.png"  "$R/mipmap-$d/ic_launcher_foreground.png"
+        done
+        mkdir -p "$R/mipmap-anydpi-v26"
+        cp tools/icon/mipmap-anydpi-v26/ic_launcher.xml "$R/mipmap-anydpi-v26/ic_launcher.xml"
+        echo "图标已就位：$(ls $R/mipmap-xxxhdpi)"
