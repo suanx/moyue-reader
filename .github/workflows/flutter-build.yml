@@ -117,7 +117,7 @@ jobs:
           python3 - <<'PY'
           p = 'android/app/build.gradle.kts'
           s = open(p, encoding='utf-8').read()
-          if 'signingConfigs' not in s:
+          if 'signingConfigs {' not in s:
               block = '''    signingConfigs {
               create("release") {
                   val keystoreProperties = java.util.Properties()
