@@ -97,6 +97,50 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "版本号：$v"
 
+      # 正式版签名：解码 keystore → key.properties → 给模板 build.gradle.kts 注入 signingConfigs
+      - name: 写入签名配置
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.build_release == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PW: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS_V: ${{ secrets.KEY_ALIAS }}
+          KEY_PW: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$KEYSTORE_B64" | base64 -d > android/app/moyue.jks
+          {
+            echo "storeFile=../app/moyue.jks"
+            echo "storePassword=$KEYSTORE_PW"
+            echo "keyAlias=$KEY_ALIAS_V"
+            echo "keyPassword=$KEY_PW"
+          } > android/key.properties
+          python3 - <<'PY'
+          p = 'android/app/build.gradle.kts'
+          s = open(p, encoding='utf-8').read()
+          if 'signingConfigs' not in s:
+              block = '''    signingConfigs {
+              create("release") {
+                  val keystoreProperties = java.util.Properties()
+                  val keystorePropertiesFile = rootProject.file("key.properties")
+                  if (keystorePropertiesFile.exists()) {
+                      keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+                  }
+                  keyAlias = keystoreProperties["keyAlias"] as String?
+                  keyPassword = keystoreProperties["keyPassword"] as String?
+                  storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                  storePassword = keystoreProperties["storePassword"] as String?
+              }
+          }
+
+          '''
+              s = s.replace('    buildTypes {', block + '    buildTypes {', 1)
+          s = s.replace('signingConfig = signingConfigs.getByName("debug")',
+                        'signingConfig = signingConfigs.getByName("release")')
+          open(p, 'w', encoding='utf-8').write(s)
+          print('gradle 签名配置已写入')
+          PY
+          ls -la android/app/moyue.jks android/key.properties
+
       - name: 构建 Debug APK
         run: flutter build apk --debug
 
